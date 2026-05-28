@@ -9,6 +9,13 @@ version: 3.0.0
 
 将微信读书笔记导入 Get 笔记并加入知识库。底层由 [notebridge](https://github.com/chucan1/notebridge) 驱动。
 
+### v2 → v3 变化
+
+- **删除**：不再需要安装 `weread-skills`、`getnote-note`、`getnote-kb` 子 skill
+- **新增**：`npm install -g @chucan1013/notebridge`
+- **拉取数据**：`notebridge weread --book "..." --to getnote` 替代所有 raw curl 命令
+- **技能体积**：370 行 → 120 行
+
 ## 前置依赖（首次使用先完成这里）
 
 ### 1. 安装 notebridge

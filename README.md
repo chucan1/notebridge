@@ -80,6 +80,14 @@ There's a companion skill that wraps notebridge for Claude Code:
 claude skills add chucan1/weread-to-getnote
 ```
 
+## Changelog
+
+| Version | Date | Changes |
+|---------|------|---------|
+| **0.1.2** | 2026-05-29 | `--list-resources`, `-o json` output, skill v3.0.0 |
+| **0.1.1** | 2026-05-29 | Positional arg support (`notebridge weread` without `--source`) |
+| **0.1.0** | 2026-05-29 | Initial release: weread-reader, getnote-writer, obsidian-writer, local-markdown-reader, PipelineRunner, CLI |
+
 ## License
 
 MIT
