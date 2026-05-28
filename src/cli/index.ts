@@ -25,6 +25,11 @@ function parseArgs(): CLIArgs {
 
   for (let i = 2; i < process.argv.length; i++) {
     const a = process.argv[i];
+    // First positional arg without leading -- is the source
+    if (!a.startsWith("-") && !args.source) {
+      args.source = a;
+      continue;
+    }
     switch (a) {
       case "--source":
       case "-s":

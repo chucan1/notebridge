@@ -1,6 +1,6 @@
 {
   "name": "@chucan1013/notebridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-platform note bridge — translate notes between WeRead, GetNote, Obsidian, Flomo, and more",
   "main": "dist/index.js",
   "bin": {
