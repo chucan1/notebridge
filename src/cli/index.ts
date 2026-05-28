@@ -15,6 +15,8 @@ interface CLIArgs {
   help?: boolean;
   listSources?: boolean;
   listTargets?: boolean;
+  listResources?: boolean;
+  json?: boolean;
 }
 
 function parseArgs(): CLIArgs {
@@ -63,9 +65,18 @@ function parseArgs(): CLIArgs {
       case "--list-targets":
         args.listTargets = true;
         break;
+      case "--list-resources":
+        args.listResources = true;
+        break;
       case "--help":
       case "-h":
         args.help = true;
+        break;
+      case "-o":
+        if (process.argv[i + 1] === "json") {
+          args.json = true;
+          i++;
+        }
         break;
       default:
         break;
@@ -97,6 +108,8 @@ Options:
   --dry-run         Preview what would be written without actually writing
   --list-sources    List available source platforms
   --list-targets    List available destination platforms
+  --list-resources  List available books/resources from the source
+  -o json           Output result as JSON
   -h, --help        Show this help
 `.trim());
 }
@@ -117,6 +130,21 @@ async function main(): Promise<void> {
 
   if (args.listTargets) {
     console.log("Targets: " + listDestinationPlatforms().join(", "));
+    process.exit(0);
+  }
+
+  // --list-resources: list books/resources within a source
+  if (args.listResources) {
+    if (!args.source) {
+      console.error("Error: --list-resources requires --source (e.g., notebridge weread --list-resources)");
+      process.exit(1);
+    }
+    const adapter = getSourceAdapter(args.source);
+    const srcCfg = { credential: { api_key: process.env["WEREAD_API_KEY"] ?? "" }, options: {} };
+    const resources = await adapter.listResources(srcCfg);
+    for (const r of resources) {
+      console.log(`${r.id}\t${r.note_count ?? "?"} notes\t${r.title}${r.author ? " — " + r.author : ""}`);
+    }
     process.exit(0);
   }
 
@@ -183,12 +211,15 @@ async function main(): Promise<void> {
 
   const result = await run(source, dest, resource, sourceConfig, destConfig, options);
 
-  console.log(
-    `Done. Transferred: ${result.notes_transferred}, Skipped: ${result.notes_skipped}, Errors: ${result.errors.length}`,
-  );
-
-  for (const err of result.errors) {
-    console.error(`  [${err.reason}] ${err.source_note_id}: ${err.detail}`);
+  if (args.json) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log(
+      `Done. Transferred: ${result.notes_transferred}, Skipped: ${result.notes_skipped}, Errors: ${result.errors.length}`,
+    );
+    for (const err of result.errors) {
+      console.error(`  [${err.reason}] ${err.source_note_id}: ${err.detail}`);
+    }
   }
 
   if (result.errors.length > 0) process.exit(1);
