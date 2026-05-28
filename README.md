@@ -11,7 +11,7 @@ local  → IR → notion
 ## Install
 
 ```bash
-npm install -g notebridge
+npm install -g @chucan1013/notebridge
 ```
 
 ## Quick Start
@@ -58,7 +58,7 @@ Each platform only needs two adapters (read + write). Add a new platform and it 
 ## Write Your Own Adapter
 
 ```typescript
-import { registerSource, SourceAdapter } from "notebridge";
+import { registerSource, SourceAdapter } from "@chucan1013/notebridge";
 
 const myReader: SourceAdapter = {
   platform: "my-app",
