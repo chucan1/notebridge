@@ -7,7 +7,7 @@ const CONFIG_FILE = join(CONFIG_DIR, "config.yml");
 
 interface NotebridgeConfig {
   credentials?: {
-    flomo?: { authorization?: string };
+    flomo?: { cookie?: string };
     weread?: { api_key?: string };
     getnote?: { api_key?: string };
     obsidian?: { vault_path?: string };
@@ -48,7 +48,7 @@ function parseYaml2(text: string): NotebridgeConfig {
   const creds = raw["credentials"] as Record<string, Record<string, string>> | undefined;
   return {
     credentials: {
-      flomo: creds?.["flomo"] ? { authorization: creds["flomo"]["authorization"] } : undefined,
+      flomo: creds?.["flomo"] ? { cookie: creds["flomo"]["cookie"] } : undefined,
       weread: creds?.["weread"] ? { api_key: creds["weread"]["api_key"] } : undefined,
     },
   };
@@ -65,16 +65,16 @@ export async function loadConfig(): Promise<NotebridgeConfig> {
   return cachedConfig!;
 }
 
-export async function saveFlomoToken(authToken: string): Promise<void> {
+export async function saveFlomoCookie(cookie: string): Promise<void> {
   const config = await loadConfig();
   if (!config.credentials) config.credentials = {};
   if (!config.credentials.flomo) config.credentials.flomo = {};
-  config.credentials.flomo.authorization = authToken;
+  config.credentials.flomo.cookie = cookie;
 
   const yml = `# notebridge config — auto-generated
 credentials:
   flomo:
-    authorization: "${authToken}"
+    cookie: "${cookie}"
 `;
 
   await mkdir(CONFIG_DIR, { recursive: true });
