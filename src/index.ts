@@ -45,4 +45,5 @@ export { getnoteWriter } from "./adapters/getnote-writer";
 export { notionWriter } from "./adapters/notion-writer";
 export { flomoWriter } from "./adapters/flomo-writer";
 export { obsidianWriter } from "./adapters/obsidian-writer";
+export { obsidianReader } from "./adapters/obsidian-reader";
 export { localMarkdownReader } from "./adapters/local-markdown-reader";

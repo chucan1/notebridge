@@ -193,6 +193,7 @@ async function main(): Promise<void> {
       authorization: process.env["FLOMO_AUTHORIZATION"] ?? "",
       cookie: process.env["FLOMO_COOKIE"] ?? "",
       dir_path: args.resource ?? "",
+      vault_path: process.env["OBSIDIAN_VAULT"] ?? "",
     },
     options: {},
   };

@@ -44,6 +44,7 @@ notebridge --list-targets
 - **weread** — WeChat Read highlights and thoughts
 - **flomo** — Flomo memos (auth once: `notebridge flomo auth`)
 - **notion** — Notion pages (auth: `NOTION_API_KEY=ntn_xxx`)
+- **obsidian** — Obsidian vault (wikilinks, YAML tags, frontmatter)
 - **local-markdown** — Local .md files with frontmatter
 
 ### Destinations

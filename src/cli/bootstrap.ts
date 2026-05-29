@@ -7,11 +7,13 @@ import { flomoWriter } from "../adapters/flomo-writer";
 import { notionWriter } from "../adapters/notion-writer";
 import { obsidianWriter } from "../adapters/obsidian-writer";
 import { localMarkdownReader } from "../adapters/local-markdown-reader";
+import { obsidianReader } from "../adapters/obsidian-reader";
 
 export function bootstrap(): void {
   registerSource(wereadReader);
   registerSource(flomoReader);
   registerSource(notionReader);
+  registerSource(obsidianReader);
   registerSource(localMarkdownReader);
   registerDestination(getnoteWriter);
   registerDestination(flomoWriter);
