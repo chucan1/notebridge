@@ -14,24 +14,24 @@ async function resolveToken(config: PlatformConfig): Promise<string> {
 function noteToBlocks(note: NoteIR): Array<Record<string, unknown>> {
   const blocks: Array<Record<string, unknown>> = [];
 
-  // Heading
-  const title = note.book_title || note.title || "Untitled";
+  // Heading: use note title first (highlight text), book name as subtitle
+  const heading = note.title || note.book_title || "Untitled";
   blocks.push({
     object: "block",
-    type: "heading_1",
-    heading_1: {
-      rich_text: [{ type: "text", text: { content: title } }],
+    type: "heading_2",
+    heading_2: {
+      rich_text: [{ type: "text", text: { content: heading.slice(0, 100) } }],
     },
   });
 
-  // Subtitle (author + chapter)
-  const subtitle = [note.author, note.chapter_title].filter(Boolean).join(" · ");
-  if (subtitle) {
+  // Context: book + author + chapter
+  const context = [note.book_title, note.author ? `— ${note.author}` : null, note.chapter_title].filter(Boolean).join(" · ");
+  if (context && note.book_title !== heading) {
     blocks.push({
       object: "block",
       type: "paragraph",
       paragraph: {
-        rich_text: [{ type: "text", text: { content: subtitle, link: null }, annotations: { italic: true } }],
+        rich_text: [{ type: "text", text: { content: context, link: null }, annotations: { italic: true, color: "gray" } }],
       },
     });
   }
