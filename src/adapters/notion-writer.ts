@@ -5,6 +5,16 @@ import { makeDedupMarker } from "../ir/schema";
 const NOTION_API = "https://api.notion.com/v1";
 const NOTION_VERSION = "2026-03-11";
 
+// Notion rate limit: ~3 requests/second. Track and throttle.
+let lastRequestTime = 0;
+async function throttle(): Promise<void> {
+  const now = Date.now();
+  const minGap = 350; // ms between requests (~2.85 req/s)
+  const wait = Math.max(0, lastRequestTime + minGap - now);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastRequestTime = Date.now();
+}
+
 async function resolveToken(config: PlatformConfig): Promise<string> {
   const token = config.credential["api_key"] || process.env["NOTION_API_KEY"];
   if (!token) throw new Error("Notion API key not configured");
@@ -145,6 +155,7 @@ function noteToBlocksMinimal(note: NoteIR): Array<Record<string, unknown>> {
 }
 
 async function notionPost(path: string, body: unknown, token: string): Promise<unknown> {
+  await throttle();
   const resp = await fetch(`${NOTION_API}${path}`, {
     method: "POST",
     headers: {
@@ -163,6 +174,7 @@ async function notionPost(path: string, body: unknown, token: string): Promise<u
 }
 
 async function notionPatch(path: string, body: unknown, token: string): Promise<unknown> {
+  await throttle();
   const resp = await fetch(`${NOTION_API}${path}`, {
     method: "PATCH",
     headers: {

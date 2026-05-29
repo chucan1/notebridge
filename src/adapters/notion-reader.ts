@@ -163,7 +163,10 @@ export const notionReader: SourceAdapter = {
 
   async listResources(config: PlatformConfig): Promise<Resource[]> {
     const token = await resolveToken(config);
-    const searchResp = await fetch(`${NOTION_API}/search`, {
+    const resources: Resource[] = [];
+
+    // Search pages
+    const pageResp = await fetch(`${NOTION_API}/search`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -173,29 +176,82 @@ export const notionReader: SourceAdapter = {
       body: JSON.stringify({ page_size: 50, filter: { property: "object", value: "page" } }),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!searchResp.ok) {
-      const err = await searchResp.text();
-      throw new Error(`Notion search error ${searchResp.status}: ${err.slice(0, 200)}`);
+    if (pageResp.ok) {
+      const data = await pageResp.json() as { results?: Array<{ id: string; object: string; properties?: Record<string, unknown>; url?: string; child_database?: { title: string } }> };
+      for (const p of data.results ?? []) {
+        const props = p.properties ?? {};
+        const titleProp = Object.values(props).find(
+          (v: unknown) => (v as { type?: string })?.type === "title"
+        ) as { title?: Array<{ plain_text: string }> } | undefined;
+        const title = titleProp?.title?.map(t => t.plain_text).join("")
+          || p.child_database?.title
+          || p.id.slice(0, 8);
+        resources.push({ id: p.id, title, extra: { url: p.url, object: p.object } });
+      }
     }
-    const searchData = await searchResp.json() as { results?: Array<{ id: string; icon?: unknown; properties?: Record<string, unknown>; url?: string }> };
 
-    return (searchData.results ?? []).map(p => {
-      // Extract title from properties
-      const props = p.properties ?? {};
-      const titleProp = Object.values(props).find(
-        (v: unknown) => (v as { type?: string })?.type === "title"
-      ) as { title?: Array<{ plain_text: string }> } | undefined;
-      const title = titleProp?.title?.map(t => t.plain_text).join("") ?? p.id.slice(0, 8);
-      return {
-        id: p.id,
-        title,
-        extra: { url: p.url },
-      };
+    // Search databases
+    const dbResp = await fetch(`${NOTION_API}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Notion-Version": NOTION_VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ page_size: 20, filter: { property: "object", value: "database" } }),
+      signal: AbortSignal.timeout(30_000),
     });
+    if (dbResp.ok) {
+      const data = await dbResp.json() as { results?: Array<{ id: string; title?: Array<{ plain_text: string }>; url?: string }> };
+      for (const db of data.results ?? []) {
+        const title = db.title?.[0]?.plain_text || db.id.slice(0, 8);
+        resources.push({
+          id: db.id,
+          title: `[DB] ${title}`,
+          extra: { url: db.url, object: "database" },
+        });
+      }
+    }
+
+    return resources;
   },
 
   async fetch(resource: Resource, config: PlatformConfig): Promise<NoteIR[]> {
     const token = await resolveToken(config);
+    const objType = (resource.extra as Record<string, unknown>)?.object as string;
+
+    // Database: query all entries
+    if (objType === "database" || config.options["database_id"] || credentialIsDb(config)) {
+      const dbId = resource.id;
+      const notes: NoteIR[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const body: Record<string, unknown> = { page_size: 100 };
+        if (cursor) body["start_cursor"] = cursor;
+        const resp = await fetch(`${NOTION_API}/databases/${dbId}/query`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Notion-Version": NOTION_VERSION,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!resp.ok) throw new Error(`Notion query error ${resp.status}`);
+        const data = await resp.json() as { results: NotionPage[]; has_more: boolean; next_cursor: string | null };
+        for (const page of data.results) {
+          const blocks = await getAllBlocks(page.id, token);
+          notes.push(blocksToNoteIR(page, blocks));
+        }
+        cursor = data.has_more ? (data.next_cursor ?? undefined) : undefined;
+      } while (cursor);
+
+      return notes;
+    }
+
+    // Single page
     const blocks = await getAllBlocks(resource.id, token);
     const page: NotionPage = {
       id: resource.id,
@@ -205,3 +261,7 @@ export const notionReader: SourceAdapter = {
     return [blocksToNoteIR(page, blocks)];
   },
 };
+
+function credentialIsDb(config: PlatformConfig): boolean {
+  return !!(config.credential["database_id"] || config.options["database_id"]);
+}

@@ -19,6 +19,8 @@ interface CLIArgs {
   listTargets?: boolean;
   listResources?: boolean;
   json?: boolean;
+  databaseId?: string;
+  parentId?: string;
 }
 
 function parseArgs(): CLIArgs {
@@ -37,6 +39,8 @@ function parseArgs(): CLIArgs {
       case "--list-sources": args.listSources = true; break;
       case "--list-targets": args.listTargets = true; break;
       case "--list-resources": args.listResources = true; break;
+      case "--database-id": args.databaseId = process.argv[++i] ?? ""; break;
+      case "--parent-id": args.parentId = process.argv[++i] ?? ""; break;
       case "-o": if (process.argv[i + 1] === "json") { args.json = true; i++; } break;
       case "--help": case "-h": args.help = true; break;
     }
@@ -67,6 +71,8 @@ Options:
   --list-sources    List available source platforms
   --list-targets    List available destination platforms
   --list-resources  List available books/resources from the source
+  --database-id     Notion database ID (writes as database entries)
+  --parent-id       Notion page ID (writes as sub-pages)
   -o json           Output result as JSON
   -h, --help        Show this help
 
@@ -196,6 +202,8 @@ async function main(): Promise<void> {
       api_key: process.env["GETNOTE_API_KEY"] ?? process.env["NOTION_API_KEY"] ?? "",
       vault_path: process.env["OBSIDIAN_VAULT"] ?? "./obsidian-vault",
       webhook_url: process.env["FLOMO_WEBHOOK_URL"] ?? "",
+      database_id: args.databaseId ?? "",
+      parent_id: args.parentId ?? "",
     },
     options: {},
   };
