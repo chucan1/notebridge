@@ -43,10 +43,13 @@ notebridge --list-targets
 ### Sources
 - **weread** — WeChat Read highlights and thoughts
 - **flomo** — Flomo memos (auth once: `notebridge flomo auth`)
+- **notion** — Notion pages (auth: `NOTION_API_KEY=ntn_xxx`)
 - **local-markdown** — Local .md files with frontmatter
 
 ### Destinations
 - **getnote** — GetNote (Get 笔记)
+- **flomo** — Flomo (via webhook)
+- **notion** — Notion pages (auth: `NOTION_API_KEY=ntn_xxx`)
 - **obsidian** — Obsidian vault (.md files with frontmatter)
 
 ## How It Works

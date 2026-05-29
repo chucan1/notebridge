@@ -1,5 +1,4 @@
 // Note IR schema v0.1 — the universal intermediate representation for note data
-// See design doc: ~/.gstack/projects/chucan1-weread-to-getnote/*-design-*.md
 
 export const IR_VERSION = "0.1";
 export const SUPPORTED_IR_VERSIONS = ["0.1"];
