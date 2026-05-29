@@ -39,6 +39,7 @@ export { run } from "./pipeline/runner";
 
 // Built-in adapters
 export { wereadReader } from "./adapters/weread-reader";
+export { flomoReader } from "./adapters/flomo-reader";
 export { getnoteWriter } from "./adapters/getnote-writer";
 export { obsidianWriter } from "./adapters/obsidian-writer";
 export { localMarkdownReader } from "./adapters/local-markdown-reader";

@@ -21,6 +21,9 @@ npm install -g @chucan1013/notebridge
 export WEREAD_API_KEY=wrk-xxx
 export GETNOTE_API_KEY=gk_xxx
 
+# Flomo: authenticate once
+notebridge flomo auth
+
 # Transfer highlights from WeRead to GetNote
 notebridge weread --book "三体" --to getnote
 
@@ -39,6 +42,7 @@ notebridge --list-targets
 
 ### Sources
 - **weread** — WeChat Read highlights and thoughts
+- **flomo** — Flomo memos (auth once: `notebridge flomo auth`)
 - **local-markdown** — Local .md files with frontmatter
 
 ### Destinations
@@ -84,6 +88,7 @@ claude skills add chucan1/weread-to-getnote
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **0.1.3** | 2026-05-29 | flomo-reader adapter + `notebridge flomo auth` one-time setup |
 | **0.1.2** | 2026-05-29 | `--list-resources`, `-o json` output, skill v3.0.0 |
 | **0.1.1** | 2026-05-29 | Positional arg support (`notebridge weread` without `--source`) |
 | **0.1.0** | 2026-05-29 | Initial release: weread-reader, getnote-writer, obsidian-writer, local-markdown-reader, PipelineRunner, CLI |

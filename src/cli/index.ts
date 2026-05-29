@@ -114,8 +114,66 @@ Options:
 `.trim());
 }
 
+import { saveFlomoToken, getConfigFilePath } from "../config";
+
+async function flomoAuth(): Promise<void> {
+  const token = process.argv[3] === "auth" ? process.argv[4] : "";
+
+  if (!token || token.startsWith("-")) {
+    console.log("Flomo 认证设置");
+    console.log("==============");
+    console.log("");
+    console.log("1. 浏览器打开 https://flomoapp.com 并登录");
+    console.log("2. 按 F12 打开开发者工具 → Network 标签");
+    console.log("3. 刷新页面，点击任意 flomoapp.com 的请求");
+    console.log("4. 在 Request Headers 中找到 Authorization: Bearer xxx...");
+    console.log("5. 复制 Bearer 后面的完整 token");
+    console.log("");
+    console.log("然后运行:");
+    console.log("  notebridge flomo auth <你的token>");
+    process.exit(0);
+  }
+
+  console.log("验证 token...");
+  try {
+    const resp = await fetch("https://flomoapp.com/api/v1/memo/latest_updated_desc", {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://flomoapp.com",
+        "Referer": "https://flomoapp.com/",
+        "X-Timezone": "Asia/Shanghai",
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) {
+      console.error(`Token 无效 (HTTP ${resp.status})。请确认复制的是完整的 Bearer 值。`);
+      process.exit(1);
+    }
+    const data = await resp.json() as { data?: unknown[] };
+    const count = Array.isArray(data?.data) ? data.data.length : 0;
+    console.log(`Token 有效 (${count} 条 memo)`);
+
+    await saveFlomoToken(token);
+    console.log(`Token 已保存到 ${getConfigFilePath()}`);
+    console.log("现在可以运行: notebridge flomo --resource all --to getnote --dry-run");
+    process.exit(0);
+  } catch (err) {
+    console.error("网络错误:", err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
   bootstrap();
+
+  // Handle `notebridge flomo auth [token]`
+  if (process.argv.length >= 3 && process.argv[2] === "flomo" && process.argv[3] === "auth") {
+    await flomoAuth();
+    return;
+  }
+
   const args = parseArgs();
 
   if (args.help) {
@@ -160,6 +218,7 @@ async function main(): Promise<void> {
   const sourceConfig = {
     credential: {
       api_key: process.env["WEREAD_API_KEY"] ?? "",
+      authorization: process.env["FLOMO_AUTHORIZATION"] ?? "",
       dir_path: args.resource ?? "",
     },
     options: {},
