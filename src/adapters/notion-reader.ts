@@ -230,17 +230,18 @@ export const notionReader: SourceAdapter = {
         "Notion-Version": NOTION_VERSION,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ page_size: 20, filter: { property: "object", value: "database" } }),
+      body: JSON.stringify({ page_size: 20, filter: { property: "object", value: "data_source" } }),
       signal: AbortSignal.timeout(30_000),
     });
     if (dbResp.ok) {
-      const data = await dbResp.json() as { results?: Array<{ id: string; title?: Array<{ plain_text: string }>; url?: string }> };
-      for (const db of data.results ?? []) {
-        const title = db.title?.[0]?.plain_text || db.id.slice(0, 8);
+      const data = await dbResp.json() as { results?: Array<{ id: string; url?: string }> };
+      for (const ds of data.results ?? []) {
+        // data_source has no title — fetch database to get it
+        // data_source titles are empty in search results — use ID as label
         resources.push({
-          id: db.id,
-          title: `[DB] ${title}`,
-          extra: { url: db.url, object: "database" },
+          id: ds.id,
+          title: `[DB] ${ds.id.slice(0, 8)}`,
+          extra: { url: ds.url, object: "database" },
         });
       }
     }
