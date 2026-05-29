@@ -183,7 +183,7 @@ async function main(): Promise<void> {
 
   const sourceConfig = {
     credential: {
-      api_key: process.env["WEREAD_API_KEY"] ?? "",
+      api_key: process.env["WEREAD_API_KEY"] ?? process.env["NOTION_API_KEY"] ?? "",
       authorization: process.env["FLOMO_AUTHORIZATION"] ?? "",
       cookie: process.env["FLOMO_COOKIE"] ?? "",
       dir_path: args.resource ?? "",
@@ -193,7 +193,7 @@ async function main(): Promise<void> {
 
   const destConfig = {
     credential: {
-      api_key: process.env["GETNOTE_API_KEY"] ?? "",
+      api_key: process.env["GETNOTE_API_KEY"] ?? process.env["NOTION_API_KEY"] ?? "",
       vault_path: process.env["OBSIDIAN_VAULT"] ?? "./obsidian-vault",
       webhook_url: process.env["FLOMO_WEBHOOK_URL"] ?? "",
     },

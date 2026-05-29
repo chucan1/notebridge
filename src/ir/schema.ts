@@ -42,6 +42,7 @@ export interface ExtraFields {
   aliases?: string[];
   cssClasses?: string[];
   // notion-specific
+  pageId?: string;
   blockId?: string;
   parentId?: string;
   databaseId?: string;
