@@ -93,6 +93,57 @@ function noteToBlocks(note: NoteIR): Array<Record<string, unknown>> {
   return blocks;
 }
 
+// Minimal blocks for database mode (no inline tags — use native properties instead)
+function noteToBlocksMinimal(note: NoteIR): Array<Record<string, unknown>> {
+  const blocks: Array<Record<string, unknown>> = [];
+
+  // Content as quote
+  if (note.content) {
+    blocks.push({
+      object: "block",
+      type: "quote",
+      quote: {
+        rich_text: [{ type: "text", text: { content: note.content } }],
+      },
+    });
+  }
+
+  // Children (thoughts)
+  for (const child of note.children) {
+    blocks.push({
+      object: "block",
+      type: "bulleted_list_item",
+      bulleted_list_item: {
+        rich_text: [{ type: "text", text: { content: child.content } }],
+      },
+    });
+  }
+
+  // Source link
+  if (note.source_url && /^https?:\/\//i.test(note.source_url)) {
+    blocks.push({
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: note.source_url, link: { url: note.source_url } } }],
+      },
+    });
+  }
+
+  // Chapter context
+  if (note.chapter_title) {
+    blocks.unshift({
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: [{ type: "text", text: { content: `📖 ${note.chapter_title}`, link: null }, annotations: { italic: true, color: "gray" } }],
+      },
+    });
+  }
+
+  return blocks;
+}
+
 async function notionPost(path: string, body: unknown, token: string): Promise<unknown> {
   const resp = await fetch(`${NOTION_API}${path}`, {
     method: "POST",
@@ -129,6 +180,35 @@ async function notionPatch(path: string, body: unknown, token: string): Promise<
   return resp.json();
 }
 
+// Auto-detect database schema: find title and multi-select properties
+async function detectDbSchema(databaseId: string, token: string): Promise<{ titleProp: string; tagProp: string | null }> {
+  try {
+    // v2026-03-11: get database → data_source → properties
+    const db = await fetch(`${NOTION_API}/databases/${databaseId}`, {
+      headers: { "Authorization": `Bearer ${token}`, "Notion-Version": NOTION_VERSION },
+      signal: AbortSignal.timeout(15_000),
+    }).then(r => r.json()) as { data_sources?: Array<{ id: string }> };
+
+    const dsId = db.data_sources?.[0]?.id;
+    if (!dsId) throw new Error("No data source found");
+
+    const ds = await fetch(`${NOTION_API}/data_sources/${dsId}`, {
+      headers: { "Authorization": `Bearer ${token}`, "Notion-Version": NOTION_VERSION },
+      signal: AbortSignal.timeout(15_000),
+    }).then(r => r.json()) as { properties?: Record<string, { type: string }> };
+
+    let titleProp = "Name";
+    let tagProp: string | null = null;
+    for (const [name, prop] of Object.entries(ds.properties ?? {})) {
+      if (prop.type === "title") titleProp = name;
+      if (prop.type === "multi_select" && !tagProp) tagProp = name;
+    }
+    return { titleProp, tagProp };
+  } catch {
+    return { titleProp: "Name", tagProp: null };
+  }
+}
+
 export const notionWriter: DestinationAdapter = {
   platform: "notion",
   version: "0.1.0",
@@ -155,9 +235,11 @@ export const notionWriter: DestinationAdapter = {
     options?: WriteOptions,
   ): Promise<TransferResult> {
     const token = await resolveToken(config);
+    const databaseId = config.credential["database_id"] || config.options["database_id"] as string;
     const parentId = config.credential["parent_id"] || config.options["parent_id"] as string;
-    if (!parentId) {
-      throw new Error("Notion parent_id not configured (credential.parent_id). Create a Notion page and share it with your integration.");
+
+    if (!databaseId && !parentId) {
+      throw new Error("Notion database_id or parent_id required. Create a Notion database/page and share it with your integration.");
     }
 
     const result: TransferResult = {
@@ -175,25 +257,46 @@ export const notionWriter: DestinationAdapter = {
           continue;
         }
 
-        const title = note.book_title
+        const pageTitle = note.book_title
           ? `《${note.book_title}》笔记`
           : (note.title || "Untitled");
 
-        // Create page as child of parent
-        const page = await notionPost("/pages", {
-          parent: { page_id: parentId },
-          properties: {
-            title: {
-              title: [{ type: "text", text: { content: title } }],
-            },
-          },
-        }, token) as { id: string };
+        let page: { id: string };
 
-        // Append content blocks
-        const blocks = noteToBlocks(note);
-        await notionPatch(`/blocks/${page.id}/children`, {
-          children: blocks,
-        }, token);
+        if (databaseId) {
+          // Database mode: auto-detect schema, create page with native properties
+          const schema = await detectDbSchema(databaseId, token);
+          const titleProp = config.options["title_property"] as string || schema.titleProp;
+          const tagProp = config.options["tag_property"] as string || schema.tagProp || "Tags";
+
+          const properties: Record<string, unknown> = {
+            [titleProp]: {
+              title: [{ type: "text", text: { content: pageTitle } }],
+            },
+          };
+          // Set tags as native multi-select
+          if (note.tags.length > 0 && schema.tagProp) {
+            properties[tagProp] = {
+              multi_select: note.tags.map(t => ({ name: t.replace(/^#/, "") })),
+            };
+          }
+          page = await notionPost("/pages", {
+            parent: { database_id: databaseId },
+            properties,
+          }, token) as { id: string };
+        } else {
+          // Page mode: create sub-page
+          page = await notionPost("/pages", {
+            parent: { page_id: parentId },
+            properties: { title: { title: [{ type: "text", text: { content: pageTitle } }] } },
+          }, token) as { id: string };
+        }
+
+        // Append content blocks (no inline tags for database mode)
+        const blocks = databaseId ? noteToBlocksMinimal(note) : noteToBlocks(note);
+        if (blocks.length > 0) {
+          await notionPatch(`/blocks/${page.id}/children`, { children: blocks }, token);
+        }
 
         result.notes_transferred++;
       } catch (err) {
