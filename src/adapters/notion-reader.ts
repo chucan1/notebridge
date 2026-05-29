@@ -41,14 +41,48 @@ async function resolveToken(config: PlatformConfig): Promise<string> {
   return token;
 }
 
-// Extract plain text from Notion rich text array
-function richTextToString(richText: unknown): string {
-  if (Array.isArray(richText)) {
-    return richText.map((t: Record<string, unknown>) =>
-      (t as { plain_text?: string })?.plain_text ?? ""
-    ).join("");
+interface RichTextItem {
+  plain_text: string;
+  annotations?: { bold: boolean; italic: boolean; strikethrough: boolean; underline: boolean; code: boolean; color: string };
+  href?: string | null;
+  text?: { content: string; link?: { url: string } | null };
+  type?: string;
+}
+
+// Convert Notion rich text to Markdown with formatting
+function richTextToMarkdown(richText: unknown): string {
+  if (!Array.isArray(richText)) return String(richText ?? "");
+  let result = "";
+  for (const item of richText) {
+    let text = (item as RichTextItem).plain_text ?? "";
+    const ann = (item as RichTextItem).annotations;
+    const link = (item as RichTextItem).href || (item as RichTextItem).text?.link?.url;
+    if (!text) continue;
+
+    if (ann?.code) text = "`" + text + "`";
+    if (ann?.bold) text = "**" + text + "**";
+    if (ann?.italic) text = "*" + text + "*";
+    if (ann?.strikethrough) text = "~~" + text + "~~";
+    if (link) text = "[" + text + "](" + link + ")";
+
+    result += text;
   }
-  return String(richText ?? "");
+  return result;
+}
+
+function richTextToString(richText: unknown): string {
+  return richTextToMarkdown(richText);
+}
+
+// Convert image blocks to markdown
+function imageBlockToMarkdown(block: NotionBlock): string {
+  const data = (block as Record<string, unknown>)[block.type] as Record<string, unknown> | undefined;
+  const file = data?.file as Record<string, string> | undefined;
+  const external = data?.external as Record<string, string> | undefined;
+  const caption = data?.caption as RichTextItem[] | undefined;
+  const alt = caption ? richTextToMarkdown(caption) : "Image";
+  const url = external?.url || file?.url || "";
+  return url ? `![${alt}](${url})` : `[${alt}]`;
 }
 
 // Convert Notion blocks to markdown
@@ -80,9 +114,7 @@ function blockToMarkdown(block: NotionBlock): string {
     case "callout":
       return "> " + richTextToString(data?.rich_text);
     case "image":
-      return data?.type === "external"
-        ? `![](${(data?.external as Record<string,string>)?.url})`
-        : `[Image: ${(data?.file as Record<string,string>)?.url}]`;
+      return imageBlockToMarkdown(block);
     default:
       return richTextToString(data?.rich_text) || "";
   }
